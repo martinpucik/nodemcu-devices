@@ -6,8 +6,13 @@ Servo servo;
 const char* ssid = "SSID";
 const char* password = "PASS";
 
-int value = 0;
+
+
 String address;
+
+const int offValue = 0;
+const int onValue = 180;
+int value = onValue;
 
 WiFiServer server(80);
 int SERVOPIN = 2;
@@ -33,6 +38,7 @@ void setup() {
   
   Serial.println();
   Serial.println("Wifi Connected!");
+  Serial.println(WiFi.macAddress());
 
   // Start the server
   server.begin();
@@ -66,27 +72,41 @@ void loop() {
   String request = client.readStringUntil('\r');
   Serial.println(request);
   client.flush();
- 
-  // Match the request
- 
-  if (request.indexOf("/ON") != -1)  {
-    
-    value = 180;
-    servo.write(value);
-    
-  } else if (request.indexOf("/OFF") != -1)  {
-    
-    value = 0;
-    servo.write(value);
-    
-  }
 
   // Return the response
   client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: text/plain");
   client.println(""); //  do not forget this one
+  
+  if (request.indexOf("/STATE") != -1) {
 
-  int statusInteger = value == 0 ? 0 : 1;  
-  client.println(statusInteger);
+     /// Idle position for blinds
+     client.println("2");
+     
+  } else if (request.indexOf("/POSITION") != -1) {
+    
+    /// Current poisition
+    int statusInteger = value == offValue ? 0 : 100;  
+    client.println(statusInteger);
+    
+  } else {
+
+    /// Set servo to passed position
+    /// http://192.168.0.115/1 || http://192.168.0.115/100
+
+    String noMethodString = request.substring(5);
+    int endIndex = noMethodString.indexOf(" ");
+    if (endIndex != -1) {
+      String valueString = noMethodString.substring(0, endIndex);
+      double requestedValue = (double(valueString.toInt()) / 100);
+      int newServoValue = int(requestedValue * onValue);
+
+      value = newServoValue;
+      servo.write(value);
+    }
+    
+    client.println();
+  }
  
   delay(1);
   Serial.println("Client disonnected");
